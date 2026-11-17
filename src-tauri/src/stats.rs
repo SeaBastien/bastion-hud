@@ -1,7 +1,6 @@
 //! System statistics, pushed to the window every 1.5 seconds.
 
 use serde::Serialize;
-use std::collections::HashSet;
 use std::env;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -83,27 +82,73 @@ fn net_totals() -> (u64, u64) {
     (rx, tx)
 }
 
+/// Filesystems that are not real storage (image layers, RAM disks).
+const SKIP_FS: [&str; 7] = [
+    "overlay",
+    "composefs",
+    "tmpfs",
+    "devtmpfs",
+    "squashfs",
+    "erofs",
+    "efivarfs",
+];
+
+/// When one device is mounted in several places, show the first of these.
+const PREFERRED_MOUNTS: [&str; 5] = ["/", "/var/home", "/home", "/var", "/sysroot"];
+
+fn mount_rank(mount: &str) -> (usize, usize) {
+    let position = PREFERRED_MOUNTS
+        .iter()
+        .position(|preferred| *preferred == mount)
+        .unwrap_or(PREFERRED_MOUNTS.len());
+    (position, mount.len())
+}
+
 fn read_disks() -> Vec<DiskInfo> {
     let disks = Disks::new_with_refreshed_list();
-    let mut seen = HashSet::new();
-    let mut out = Vec::new();
+    // (device key, info). Image-based systems mount one device many times,
+    // so each device is listed once, under its most useful mount point.
+    let mut out: Vec<(String, DiskInfo)> = Vec::new();
+
     for disk in &disks {
-        let name = disk.name().to_string_lossy().into_owned();
-        // Image-based systems mount one device many times; show each device once.
-        if disk.total_space() == 0 || !seen.insert(name.clone()) {
+        let file_system = disk.file_system().to_string_lossy().to_lowercase();
+        let mount = disk.mount_point().to_string_lossy().into_owned();
+        if disk.total_space() == 0
+            || SKIP_FS.contains(&file_system.as_str())
+            || mount.starts_with("/boot")
+        {
             continue;
         }
-        out.push(DiskInfo {
+
+        let name = disk.name().to_string_lossy().into_owned();
+        // On Windows the name is a volume label, which can repeat or be
+        // empty, so the drive letter identifies the device there.
+        let key = if cfg!(windows) || name.is_empty() {
+            mount.clone()
+        } else {
+            name.clone()
+        };
+        let info = DiskInfo {
             name,
-            mount: disk.mount_point().to_string_lossy().into_owned(),
+            mount,
             total: disk.total_space(),
             available: disk.available_space(),
-        });
-        if out.len() == MAX_DISKS {
-            break;
+        };
+
+        match out.iter_mut().find(|(existing, _)| *existing == key) {
+            Some((_, existing)) => {
+                if mount_rank(&info.mount) < mount_rank(&existing.mount) {
+                    *existing = info;
+                }
+            }
+            None => out.push((key, info)),
         }
     }
-    out
+
+    out.into_iter()
+        .map(|(_, info)| info)
+        .take(MAX_DISKS)
+        .collect()
 }
 
 fn top_processes(sys: &System) -> Vec<ProcInfo> {

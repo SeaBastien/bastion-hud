@@ -1,6 +1,6 @@
 [package]
 name = "bastion-hud"
-version = "0.1.1"
+version = "0.1.2"
 description = "A sci-fi terminal and system monitor for Bastion"
 edition = "2021"
 

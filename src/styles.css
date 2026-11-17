@@ -8,7 +8,7 @@
   --text: #c8f4ff;
   --dim: #5f93a3;
   --danger: #ff5c7a;
-  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'DejaVu Sans Mono', monospace;
+  --mono: 'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'DejaVu Sans Mono', 'Symbols Nerd Font Mono', 'Symbols Nerd Font', 'Noto Color Emoji', monospace;
 }
 [data-theme='matrix'] {
   --bg: #030803;

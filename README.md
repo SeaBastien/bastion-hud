@@ -13,9 +13,8 @@ Version 0.1 has:
 
 ## Status
 
-Version 0.1.0 compiled and ran on Windows 11 on the first build. The Linux
-build has not been run yet; the GitHub workflow in this repository is its
-first test.
+Versions up to 0.1.1 have been built and run on Windows 11 and on Bastion
+(Linux) in a virtual machine.
 
 ## Build and run
 

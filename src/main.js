@@ -16,7 +16,7 @@ function sleep(ms) {
 async function bootSequence() {
   const log = document.getElementById('boot-log');
   const lines = [
-    'BASTION HUD v0.1.1',
+    'BASTION HUD v0.1.2',
     'linking interface ......... ok',
     'starting system monitors .. ok',
     'opening shell ............. ok',
