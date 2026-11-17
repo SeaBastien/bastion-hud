@@ -10,16 +10,54 @@ concurrency:
   group: release
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  linux-rpm:
-    name: Build Linux RPM
-    runs-on: ubuntu-22.04
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    strategy:
+      # One platform failing must not stop the others.
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86-64 (RPM)
+            os: ubuntu-22.04
+            target: ""
+            args: --bundles rpm
+            output: src-tauri/target/release/bundle/rpm/*.rpm
+            asset: bastion-hud.x86_64.rpm
+
+          - name: Linux ARM64 (RPM)
+            os: ubuntu-22.04-arm
+            target: ""
+            args: --bundles rpm
+            output: src-tauri/target/release/bundle/rpm/*.rpm
+            asset: bastion-hud.aarch64.rpm
+
+          - name: macOS Apple silicon (DMG)
+            os: macos-latest
+            target: ""
+            args: --bundles dmg
+            output: src-tauri/target/release/bundle/dmg/*.dmg
+            asset: bastion-hud.macos-arm64.dmg
+
+          - name: Windows ARM64 (installer)
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+            output: src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
+            asset: bastion-hud.windows-arm64-setup.exe
+
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install system libraries
+      - name: Install system libraries (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -29,24 +67,27 @@ jobs:
           node-version: lts/*
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: ${{ matrix.asset }}
 
       - name: Install JavaScript packages
         run: npm install
 
-      - name: Build the RPM
-        run: npm run tauri build -- --bundles rpm
+      - name: Build
+        run: npm run tauri build -- ${{ matrix.args }}
 
       - name: Publish to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rpm=$(find src-tauri/target/release/bundle/rpm -name '*.rpm' | head -n 1)
-          test -n "$rpm"
-          cp "$rpm" bastion-hud.x86_64.rpm
+          file=$(ls ${{ matrix.output }} | head -n 1)
+          test -n "$file"
+          cp "$file" "${{ matrix.asset }}"
           gh release view latest >/dev/null 2>&1 || \
-            gh release create latest --title "Latest build" --notes "Rebuilt automatically on every push to main."
-          gh release upload latest bastion-hud.x86_64.rpm --clobber
+            gh release create latest --title "Latest build" --notes "Rebuilt automatically on every push to main." || true
+          gh release upload latest "${{ matrix.asset }}" --clobber

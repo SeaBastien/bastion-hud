@@ -58,16 +58,26 @@ npm run tauri build
 
 The result lands in `src-tauri/target/release/bundle/`.
 
-## Linux package (built by GitHub)
+## Downloads (built by GitHub)
 
-`.github/workflows/release.yml` builds an RPM on every push to `main` and
-uploads it to a release tagged `latest`, always at the same address:
+`.github/workflows/release.yml` builds the app for four platforms on every
+push to `main` and uploads them to a release tagged `latest`. Replace `USER`
+with the repository owner:
 
-```
-https://github.com/USER/bastion-hud/releases/download/latest/bastion-hud.x86_64.rpm
-```
+| Platform | File |
+| --- | --- |
+| Linux, Intel/AMD | `bastion-hud.x86_64.rpm` |
+| Linux, ARM | `bastion-hud.aarch64.rpm` |
+| macOS, Apple silicon | `bastion-hud.macos-arm64.dmg` |
+| Windows, ARM | `bastion-hud.windows-arm64-setup.exe` |
 
-The Bastion image installs the app from that address.
+Each file is at
+`https://github.com/USER/bastion-hud/releases/download/latest/<file>`.
+The Bastion image installs the first one from that address.
+
+The macOS app is not signed with an Apple developer certificate. On first
+launch macOS will refuse to open it: go to System Settings, Privacy and
+Security, and choose Open Anyway.
 
 ## Shell profiles
 
